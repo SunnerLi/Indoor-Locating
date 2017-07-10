@@ -40,4 +40,22 @@ def load(train_file_name, valid_file_name):
     testing_y = test_data_frame.get_values().T[[520, 521, 522, 523], :].T
     return training_x, training_y, validation_x, validation_y, testing_x, testing_y
 
-load('./TrainingData.csv', './ValidationData.csv')
+# load('./TrainingData.csv', './ValidationData.csv')
+
+def normalizeX(arr):
+    res = np.copy(arr).astype(np.float)
+    for i in range(np.shape(res)[0]):
+        for j in range(np.shape(res)[1]):
+            if res[i][j] == 100:
+                res[i][j] = 0
+            else:
+                res[i][j] = -0.01 * res[i][j]
+    return res
+
+def normalizeY(arr):
+    _mean = np.mean(arr)
+    _std = np.std(arr)
+    return _mean, _std, (arr - _mean) / _std
+
+def reverse_normalizeY(arr, mean, std):
+    return arr * std + mean
