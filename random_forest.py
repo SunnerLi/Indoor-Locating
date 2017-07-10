@@ -1,11 +1,11 @@
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from abstract_model import AbstractModel
 from sklearn.externals import joblib
-from sklearn.svm import SVC, SVR
 import numpy as np
 import data_helper
 import pickle
 
-class SVM(AbstractModel):
+class RandomForest(AbstractModel):
     # ML model object
     longitude_regression_model = None
     latitude_regression_model = None
@@ -13,17 +13,17 @@ class SVM(AbstractModel):
     building_classifier = None
 
     # Model save path
-    parameter_save_path = 'svm_param.pkl'
-    longitude_regression_model_save_path = './svm_long.pkl'
-    latitude_regression_model_save_path = './svm_lat.pkl'
-    floor_classifier_save_path = './svm_floor.pkl'
-    building_classifier_save_path = './svm_building.pkl'
+    parameter_save_path = 'rf_param.pkl'
+    longitude_regression_model_save_path = './rf_long.pkl'
+    latitude_regression_model_save_path = './rf_lat.pkl'
+    floor_classifier_save_path = './rf_floor.pkl'
+    building_classifier_save_path = './rf_building.pkl'
 
     def __init__(self):
-        self.longitude_regression_model = SVR()
-        self.latitude_regression_model = SVR()
-        self.floor_classifier = SVC()
-        self.building_classifier = SVC()
+        self.longitude_regression_model = RandomForestRegressor()
+        self.latitude_regression_model = RandomForestRegressor()
+        self.floor_classifier = RandomForestClassifier()
+        self.building_classifier = RandomForestClassifier()
 
     def fit(self, x, y):
         # Data pre-processing
