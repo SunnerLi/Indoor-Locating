@@ -1,5 +1,5 @@
 from ml_model import SVM, RandomForest, GradientBoostingDecisionTree
-from dl_model import SimpleDNN
+from dl_model import SimpleDNN, ComplexDNN
 import numpy as np
 import data_helper
 

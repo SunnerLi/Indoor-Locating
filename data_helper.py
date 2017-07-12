@@ -53,7 +53,7 @@ def normalizeX(arr):
 def normalizeY(arr):
     _mean = np.mean(arr)
     _std = np.std(arr)
-    return _mean, _std, (arr - _mean) / _std
+    return _mean, _std, (arr - _mean) / _std + 2
 
 def reverse_normalizeY(arr, mean, std):
     return arr * std + mean
