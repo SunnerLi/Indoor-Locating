@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import math
 
 def load(train_file_name, valid_file_name):
     """
@@ -53,10 +54,11 @@ def normalizeX(arr):
 def normalizeY(arr):
     _mean = np.mean(arr)
     _std = np.std(arr)
-    return _mean, _std, (arr - _mean) / _std + 2
+    shift_distance = math.floor(np.min((arr - _mean) / _std))
+    return _mean, _std, shift_distance, (arr - _mean) / _std - shift_distance
 
-def reverse_normalizeY(arr, mean, std):
-    return arr * std + mean
+def reverse_normalizeY(arr, mean, std, shift_distance):
+    return (arr + shift_distance) * std + mean
 
 def getMiniBatch(arr, batch_size=3):
     index = 0

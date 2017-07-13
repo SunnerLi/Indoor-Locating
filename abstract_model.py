@@ -38,27 +38,12 @@ class AbstractModel(object):
 
     def _preprocess(self, x, y):
         self.normalize_x = data_helper.normalizeX(x)
-        self.longitude_mean, self.longitude_std, self.longitude_normalize_y = \
+        self.longitude_mean, self.longitude_std, self.longitude_shift_distance, self.longitude_normalize_y = \
             data_helper.normalizeY(y[:, 0])
-        self.latitude_mean, self.latitude_std, self.latitude_normalize_y = \
+        self.latitude_mean, self.latitude_std, self.latitude_shift_distance, self.latitude_normalize_y = \
             data_helper.normalizeY(y[:, 1])
-        self.floor_y = y[:, 2]
+        self.floorID_y = y[:, 2]
         self.buildingID_y = y[:, 3]
-
-    """
-    @abstractmethod
-    def predict(self, x):
-        pass
-
-    @abstractmethod
-    def save(self):
-        pass
-
-    @abstractmethod
-    def load(self):
-        pass
-    
-    """
 
     def save(self):
         print "<< Saving >>"
@@ -66,8 +51,10 @@ class AbstractModel(object):
             para_dict = {
                 'longitude_mean': self.longitude_mean,
                 'longitude_std': self.longitude_std,
+                'longitude_shift_distance': self.longitude_shift_distance,
                 'latitude_mean': self.latitude_mean,
-                'latitude_std': self.latitude_std
+                'latitude_std': self.latitude_std,
+                'latitude_shift_distance': self.latitude_shift_distance
             }
             pickle.dump(para_dict, f)
         joblib.dump(self.longitude_regression_model, self.longitude_regression_model_save_path)
@@ -81,8 +68,10 @@ class AbstractModel(object):
             para_dict = pickle.load(f)
             self.longitude_mean = para_dict['longitude_mean']
             self.longitude_std = para_dict['longitude_std']
+            self.longitude_shift_distance = para_dict['longitude_shift_distance']
             self.latitude_mean = para_dict['latitude_mean']
             self.latitude_std = para_dict['latitude_std']
+            self.latitude_shift_distance = para_dict['latitude_shift_distance']
         self.longitude_regression_model = joblib.load(self.longitude_regression_model_save_path)
         self.latitude_regression_model = joblib.load(self.latitude_regression_model_save_path)
         self.floor_classifier = joblib.load(self.floor_classifier_save_path)
@@ -96,14 +85,14 @@ class AbstractModel(object):
         print "<< training >>"
         self.longitude_regression_model.fit(self.normalize_x, self.longitude_normalize_y)
         self.latitude_regression_model.fit(self.normalize_x, self.latitude_normalize_y)
-        self.floor_classifier.fit(self.normalize_x, self.floor_y)
+        self.floor_classifier.fit(self.normalize_x, self.floorID_y)
         self.building_classifier.fit(self.normalize_x, self.buildingID_y)
 
         # Release the memory
         del self.normalize_x
         del self.longitude_normalize_y
         del self.latitude_normalize_y
-        del self.floor_y
+        del self.floorID_y
         del self.buildingID_y
 
         # Save the result
@@ -123,10 +112,10 @@ class AbstractModel(object):
 
         # Reverse normalization
         predict_longitude = data_helper.reverse_normalizeY(
-            predict_longitude, self.longitude_mean, self.longitude_std
+            predict_longitude, self.longitude_mean, self.longitude_std, self.longitude_shift_distance
         )
         predict_latitude = data_helper.reverse_normalizeY(
-            predict_latitude, self.latitude_mean, self.latitude_std
+            predict_latitude, self.latitude_mean, self.latitude_std, self.latitude_shift_distance
         )
 
         # Return the result
@@ -138,10 +127,10 @@ class AbstractModel(object):
 
     def error(self, x, y, building_panality=50, floor_panality=4):
         _y = self.predict(x)
-        building_error = np.sum(np.equal(_y[3], y[3]))
-        floor_error = np.sum(np.equal(_y[2], y[2]))
+        building_error = len(y) - np.sum(np.equal(np.round(_y[:, 3]), y[:, 3]))
+        floor_error = len(y) - np.sum(np.equal(np.round(_y[:, 2]), y[:, 2]))
         coordinates_error = np.sum(np.sqrt(
-            np.square(_y[0] - y[0]), np.square(_y[1] - y[1])
+            np.square(_y[:, 0] - y[:, 0]), np.square(_y[:, 1] - y[:, 1])
         ))
         print building_error
         print floor_error
