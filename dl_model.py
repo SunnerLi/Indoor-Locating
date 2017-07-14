@@ -71,22 +71,25 @@ class ComplexDNN(AbstractModel):
         self.alternative_ctl = tf.placeholder(tf.bool)
 
         locating_network = tl.layers.InputLayer(self.x, name='Input')
-        locating_network = tl.layers.DenseLayer(locating_network, n_units = 2048, act = tf.nn.relu, name='locating_fc1' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units = 256, act = tf.nn.relu, name='locating_fc2' )
-        # locating_network = tl.layers.DenseLayer(locating_network, n_units = 128, act = tf.nn.relu, name='locating_fc3' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =   2, act = tf.identity, name='locating_fc4' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units = 1024, act = tf.nn.elu, name='locating_fc1' )
+        locating_network = tl.layers.DropoutLayer(locating_network, is_fix = True, name='locating_drop1')
+        locating_network = tl.layers.DenseLayer(locating_network, n_units = 512, act = tf.nn.elu, name='locating_fc2' )
+        locating_network = tl.layers.DropoutLayer(locating_network, is_fix = True, name='locating_drop2')
+        locating_network = tl.layers.DenseLayer(locating_network, n_units = 512, act = tf.nn.elu, name='locating_fc3' )
+        locating_network = tl.layers.DropoutLayer(locating_network, is_fix = True, name='locating_drop3')
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =  2, act = tf.identity, name='locating_fc4' )
         self.locating_predict_y = locating_network.outputs
         self.locating_cost = tl.cost.mean_squared_error(self.locating_y, self.locating_predict_y)
         self.locating_optimize = tf.train.AdamOptimizer().minimize(self.locating_cost)
 
         building_network = tl.layers.InputLayer(self.locating_predict_y, name='building_input')
         building_network = tl.layers.DenseLayer(building_network, n_units = 128, act = tf.identity, name='building_fc1')
-        building_network = tl.layers.DenseLayer(building_network, n_units =  32, act = tf.identity, name='building_fc2')
-        building_network = tl.layers.DenseLayer(building_network, n_units =  16, act = tf.nn.relu, name='building_fc3')
-        building_network = tl.layers.DenseLayer(building_network, n_units =   8, act = tf.nn.relu, name='building_fc4')
-        building_network = tl.layers.DenseLayer(building_network, n_units =   4, act = tf.nn.relu, name='building_fc5')
-        building_network = tl.layers.DenseLayer(building_network, n_units =   2, act = tf.nn.sigmoid, name='building_fc6')
-        building_network = tl.layers.DenseLayer(building_network, n_units =   1, act = tf.nn.relu, name='building_fc7')
+        building_network = tl.layers.DropoutLayer(building_network, is_fix = True, name='building_drop1')
+        building_network = tl.layers.DenseLayer(building_network, n_units =  64, act = tf.identity, name='building_fc2')
+        building_network = tl.layers.DropoutLayer(building_network, is_fix = True, name='building_drop2')
+        building_network = tl.layers.DenseLayer(building_network, n_units =  64, act = tf.nn.relu, name='building_fc3')
+        building_network = tl.layers.DropoutLayer(building_network, is_fix = True, name='building_drop3')
+        building_network = tl.layers.DenseLayer(building_network, n_units =   1, act = tf.nn.relu, name='building_fc4')
         self.building_predict_y = building_network.outputs
         self.building_cost = tl.cost.mean_squared_error(self.building_y, self.building_predict_y)
         self.building_optimize = tf.train.AdamOptimizer().minimize(self.building_cost, var_list=building_network.all_params)
@@ -94,12 +97,12 @@ class ComplexDNN(AbstractModel):
         floor_x = self.locating_predict_y + self.building_predict_y
         floor_network = tl.layers.InputLayer(floor_x)
         floor_network = tl.layers.DenseLayer(floor_network, n_units = 128, act = tf.identity, name='floor_fc1')
-        floor_network = tl.layers.DenseLayer(floor_network, n_units =  32, act = tf.nn.relu, name='floor_fc2')
-        floor_network = tl.layers.DenseLayer(floor_network, n_units =  16, act = tf.nn.relu, name='floor_fc3')
-        floor_network = tl.layers.DenseLayer(floor_network, n_units =   8, act = tf.nn.sigmoid, name='floor_fc4')
-        floor_network = tl.layers.DenseLayer(floor_network, n_units =   4, act = tf.identity, name='floor_fc5')
-        floor_network = tl.layers.DenseLayer(floor_network, n_units =   2, act = tf.identity, name='floor_fc6')
-        floor_network = tl.layers.DenseLayer(floor_network, n_units =   1, act = tf.identity, name='floor_fc7')
+        floor_network = tl.layers.DropoutLayer(floor_network, is_fix = True, name='floor_drop1')
+        floor_network = tl.layers.DenseLayer(floor_network, n_units =  64, act = tf.nn.relu, name='floor_fc2')
+        floor_network = tl.layers.DropoutLayer(floor_network, is_fix = True, name='floor_drop2')
+        floor_network = tl.layers.DenseLayer(floor_network, n_units =  64, act = tf.nn.relu, name='floor_fc3')
+        floor_network = tl.layers.DropoutLayer(floor_network, is_fix = True, name='floor_drop3')
+        floor_network = tl.layers.DenseLayer(floor_network, n_units =   1, act = tf.identity, name='floor_fc4')
 
         self.floor_predict_y = floor_network.outputs
         self.floor_cost = tl.cost.mean_squared_error(self.floor_y, self.floor_predict_y)
@@ -116,9 +119,10 @@ class ComplexDNN(AbstractModel):
         # Train the model
         print "<< training >>"
         self.sess.run(tf.global_variables_initializer())
-
-        for k in range(1):
+        for k in range(5):
             print "-------- epoch ", k, ' ---------'
+
+            # Train locating DNN
             print "\n< position >\n"
             for i in range(epoch):
                 mini_x = data_helper.getMiniBatch(self.normalize_x , batch_size)
@@ -130,13 +134,9 @@ class ComplexDNN(AbstractModel):
                 _cost, _, _output = self.sess.run([self.locating_cost, self.locating_optimize, self.locating_predict_y], feed_dict=feed_dict)
                 if i % 100 == 0:
                     print "epoch: ", i, '\tcost: ', _cost
-                    # print 'y: ', _output
-            # print 'y : ', feed_dict[self.locating_y][:5]
-            # print 'y_: ', _output[:5]
-
-            """
+            
+            # Train building ID DNN
             print "\n< building >\n"
-
             for i in range(epoch):
                 mini_x = data_helper.getMiniBatch(self.normalize_x, batch_size)
                 mini_y = data_helper.getMiniBatch(np.expand_dims(self.buildingID_y, -1), batch_size)
@@ -149,11 +149,9 @@ class ComplexDNN(AbstractModel):
                     break
                 if i % 100 == 0:
                     print "epoch: ", i, '\tcost: ', _cost
-            # print 'y : ', feed_dict[self.building_y][:5]
-            # print 'y_: ', _output[:5]
 
+            # Train floor ID DNN
             print "\n< floor >\n"
-            
             for i in range(epoch):
                 mini_x = data_helper.getMiniBatch(self.normalize_x, batch_size)
                 mini_y = data_helper.getMiniBatch(np.expand_dims(self.floorID_y, -1), batch_size)
@@ -165,10 +163,7 @@ class ComplexDNN(AbstractModel):
                 if _cost < 0.00001:
                     break
                 if i % 100 == 0:
-                    print "epoch: ", i, '\tcost: ', _cost
-            # print 'y : ', feed_dict[self.floor_y][:5]
-            # print 'y_: ', _output[:5]
-            """
+                    print "epoch: ", i, '\tcost: ', _cost            
             
         self.save()
 

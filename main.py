@@ -14,5 +14,5 @@ if __name__ == '__main__':
     y_ = model.predict(test_x)
     print y_
     print test_y
-    print model.error(test_x, test_y)
+    print model.error(train_x, train_y)
     
