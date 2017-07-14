@@ -1,6 +1,11 @@
+from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 import numpy as np
 import math
+
+# Normalize scaler
+longitude_scaler = MinMaxScaler()
+latitude_scaler = MinMaxScaler()
 
 def load(train_file_name, valid_file_name):
     """
@@ -51,14 +56,17 @@ def normalizeX(arr):
                 res[i][j] = -0.01 * res[i][j]
     return res
 
-def normalizeY(arr):
-    _mean = np.mean(arr)
-    _std = np.std(arr)
-    shift_distance = math.floor(np.min((arr - _mean) / _std))
-    return _mean, _std, shift_distance, (arr - _mean) / _std - shift_distance
+def normalizeY(longitude_arr, latitude_arr):
+    global longitude_scaler
+    global latitude_scaler
+    longitude_scaler.fit(longitude_arr)
+    latitude_scaler.fit(latitude_arr)
+    return longitude_scaler.transform(longitude_arr), latitude_scaler.transform(latitude_arr)
 
-def reverse_normalizeY(arr, mean, std, shift_distance):
-    return (arr + shift_distance) * std + mean
+def reverse_normalizeY(longitude_arr, latitude_arr):
+    global longitude_scaler
+    global latitude_scaler
+    return longitude_scaler.inverse_transform(longitude_arr), latitude_scaler.inverse_transform(latitude_arr)
 
 def getMiniBatch(arr, batch_size=3):
     index = 0

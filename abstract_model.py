@@ -25,6 +25,8 @@ class AbstractModel(object):
     longitude_std = None
     latitude_mean = None
     latitude_std = None
+    longitude_shift_distance = None
+    latitude_shift_distance = None
 
     # Training data
     normalize_x = None
@@ -38,25 +40,12 @@ class AbstractModel(object):
 
     def _preprocess(self, x, y):
         self.normalize_x = data_helper.normalizeX(x)
-        self.longitude_mean, self.longitude_std, self.longitude_shift_distance, self.longitude_normalize_y = \
-            data_helper.normalizeY(y[:, 0])
-        self.latitude_mean, self.latitude_std, self.latitude_shift_distance, self.latitude_normalize_y = \
-            data_helper.normalizeY(y[:, 1])
+        self.longitude_normalize_y, self.latitude_normalize_y = data_helper.normalizeY(y[:, 0], y[:, 1])
         self.floorID_y = y[:, 2]
         self.buildingID_y = y[:, 3]
 
     def save(self):
         print "<< Saving >>"
-        with open(self.parameter_save_path, 'wb') as f:
-            para_dict = {
-                'longitude_mean': self.longitude_mean,
-                'longitude_std': self.longitude_std,
-                'longitude_shift_distance': self.longitude_shift_distance,
-                'latitude_mean': self.latitude_mean,
-                'latitude_std': self.latitude_std,
-                'latitude_shift_distance': self.latitude_shift_distance
-            }
-            pickle.dump(para_dict, f)
         joblib.dump(self.longitude_regression_model, self.longitude_regression_model_save_path)
         joblib.dump(self.latitude_regression_model, self.latitude_regression_model_save_path)
         joblib.dump(self.floor_classifier, self.floor_classifier_save_path)
@@ -64,14 +53,6 @@ class AbstractModel(object):
 
     def load(self):
         print "<< Loading >>"
-        with open(self.parameter_save_path, 'rb') as f:
-            para_dict = pickle.load(f)
-            self.longitude_mean = para_dict['longitude_mean']
-            self.longitude_std = para_dict['longitude_std']
-            self.longitude_shift_distance = para_dict['longitude_shift_distance']
-            self.latitude_mean = para_dict['latitude_mean']
-            self.latitude_std = para_dict['latitude_std']
-            self.latitude_shift_distance = para_dict['latitude_shift_distance']
         self.longitude_regression_model = joblib.load(self.longitude_regression_model_save_path)
         self.latitude_regression_model = joblib.load(self.latitude_regression_model_save_path)
         self.floor_classifier = joblib.load(self.floor_classifier_save_path)
@@ -111,12 +92,7 @@ class AbstractModel(object):
         predict_building = self.building_classifier.predict(x)
 
         # Reverse normalization
-        predict_longitude = data_helper.reverse_normalizeY(
-            predict_longitude, self.longitude_mean, self.longitude_std, self.longitude_shift_distance
-        )
-        predict_latitude = data_helper.reverse_normalizeY(
-            predict_latitude, self.latitude_mean, self.latitude_std, self.latitude_shift_distance
-        )
+        predict_longitude, predict_latitude = data_helper.reverse_normalizeY(predict_longitude, predict_latitude)
 
         # Return the result
         res = np.concatenate((np.expand_dims(predict_longitude, axis=-1), 

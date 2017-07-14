@@ -71,26 +71,14 @@ class ComplexDNN(AbstractModel):
         self.alternative_ctl = tf.placeholder(tf.bool)
 
         locating_network = tl.layers.InputLayer(self.x, name='Input')
-        """
-        locating_network = tl.layers.DenseLayer(locating_network, n_units = 128, act = tf.nn.relu, name='locating_fc1', 
-            W_init_args = {'trainable': self.alternative_ctl[0]}, b_init_args = {'trainable': 0})
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =  64, act = tf.nn.relu, name='locating_fc2', 
-            W_init_args = {'trainable': False}, b_init_args = {'trainable': False})
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =  32, act = tf.nn.relu, name='locating_fc3', 
-            W_init_args = {'trainable': False}, b_init_args = {'trainable': False})
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =  16, act = tf.nn.relu, name='locating_fc4', 
-            W_init_args = {'trainable': False}, b_init_args = {'trainable': False})
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =   8, act = tf.nn.relu, name='locating_fc5', 
-            W_init_args = {'trainable': False}, b_init_args = {'trainable': False})
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =   2, act = tf.nn.relu, name='locating_fc6', 
-            W_init_args = {'trainable': False}, b_init_args = {'trainable': False})
-        """
         locating_network = tl.layers.DenseLayer(locating_network, n_units = 256, act = tf.nn.relu, name='locating_fc1' )
         locating_network = tl.layers.DenseLayer(locating_network, n_units = 128, act = tf.nn.relu, name='locating_fc2' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =  32, act = tf.nn.relu, name='locating_fc3' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =   8, act = tf.nn.relu, name='locating_fc4' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =   4, act = tf.nn.relu, name='locating_fc5' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =   2, act = tf.nn.relu, name='locating_fc6' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units = 128, act = tf.nn.relu, name='locating_fc3' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =  64, act = tf.nn.relu, name='locating_fc4' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =  64, act = tf.nn.relu, name='locating_fc5' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =  32, act = tf.nn.relu, name='locating_fc6' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =  32, act = tf.identity, name='locating_fc7' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =   2, act = tf.identity, name='locating_fc8' )
         self.locating_predict_y = locating_network.outputs
         self.locating_cost = tl.cost.mean_squared_error(self.locating_y, self.locating_predict_y)
         self.locating_optimize = tf.train.AdamOptimizer().minimize(self.locating_cost)
@@ -121,12 +109,10 @@ class ComplexDNN(AbstractModel):
         self.floor_cost = tl.cost.mean_squared_error(self.floor_y, self.floor_predict_y)
         self.floor_optimize = tf.train.AdamOptimizer().minimize(self.floor_cost, var_list=floor_network.all_params)
 
-    def reluRevised(self):
-        pass
-
-    def fit(self, x, y, epoch=1500, batch_size=1024):
+    def fit(self, x, y, epoch=2, batch_size=1024):
         # Data pre-processing
         self._preprocess(x, y)
+
         location_pair = np.concatenate((
             np.expand_dims(self.longitude_normalize_y, -1), np.expand_dims(self.latitude_normalize_y, -1)
         ), axis=-1)
@@ -146,13 +132,13 @@ class ComplexDNN(AbstractModel):
                     self.locating_y: mini_y.next()
                 }
                 _cost, _, _output = self.sess.run([self.locating_cost, self.locating_optimize, self.locating_predict_y], feed_dict=feed_dict)
-                if _cost < 0.00001:
-                    break
                 if i % 100 == 0:
                     print "epoch: ", i, '\tcost: ', _cost
+                    # print 'y: ', _output
             # print 'y : ', feed_dict[self.locating_y][:5]
             # print 'y_: ', _output[:5]
 
+            """
             print "\n< building >\n"
 
             for i in range(epoch):
@@ -186,6 +172,7 @@ class ComplexDNN(AbstractModel):
                     print "epoch: ", i, '\tcost: ', _cost
             # print 'y : ', feed_dict[self.floor_y][:5]
             # print 'y_: ', _output[:5]
+            """
             
         self.save()
 
@@ -210,12 +197,7 @@ class ComplexDNN(AbstractModel):
         predict_floor = self.sess.run(self.floor_predict_y, feed_dict={self.x: x})
 
         # Reverse normalization
-        predict_longitude = data_helper.reverse_normalizeY(
-            predict_longitude, self.longitude_mean, self.longitude_std, self.longitude_shift_distance
-        )
-        predict_latitude = data_helper.reverse_normalizeY(
-            predict_latitude, self.latitude_mean, self.latitude_std, self.latitude_shift_distance
-        )
+        predict_longitude, predict_latitude = data_helper.reverse_normalizeY(predict_longitude, predict_latitude)
 
         # Return the result
         res = np.concatenate((np.expand_dims(predict_longitude, axis=-1), 
