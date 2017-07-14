@@ -71,14 +71,10 @@ class ComplexDNN(AbstractModel):
         self.alternative_ctl = tf.placeholder(tf.bool)
 
         locating_network = tl.layers.InputLayer(self.x, name='Input')
-        locating_network = tl.layers.DenseLayer(locating_network, n_units = 256, act = tf.nn.relu, name='locating_fc1' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units = 128, act = tf.nn.relu, name='locating_fc2' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units = 128, act = tf.nn.relu, name='locating_fc3' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =  64, act = tf.nn.relu, name='locating_fc4' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =  64, act = tf.nn.relu, name='locating_fc5' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =  32, act = tf.nn.relu, name='locating_fc6' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =  32, act = tf.identity, name='locating_fc7' )
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =   2, act = tf.identity, name='locating_fc8' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units = 2048, act = tf.nn.relu, name='locating_fc1' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units = 256, act = tf.nn.relu, name='locating_fc2' )
+        # locating_network = tl.layers.DenseLayer(locating_network, n_units = 128, act = tf.nn.relu, name='locating_fc3' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =   2, act = tf.identity, name='locating_fc4' )
         self.locating_predict_y = locating_network.outputs
         self.locating_cost = tl.cost.mean_squared_error(self.locating_y, self.locating_predict_y)
         self.locating_optimize = tf.train.AdamOptimizer().minimize(self.locating_cost)
@@ -109,7 +105,7 @@ class ComplexDNN(AbstractModel):
         self.floor_cost = tl.cost.mean_squared_error(self.floor_y, self.floor_predict_y)
         self.floor_optimize = tf.train.AdamOptimizer().minimize(self.floor_cost, var_list=floor_network.all_params)
 
-    def fit(self, x, y, epoch=2, batch_size=1024):
+    def fit(self, x, y, epoch=2000, batch_size=256):
         # Data pre-processing
         self._preprocess(x, y)
 
@@ -121,7 +117,7 @@ class ComplexDNN(AbstractModel):
         print "<< training >>"
         self.sess.run(tf.global_variables_initializer())
 
-        for k in range(5):
+        for k in range(1):
             print "-------- epoch ", k, ' ---------'
             print "\n< position >\n"
             for i in range(epoch):
@@ -210,10 +206,10 @@ class ComplexDNN(AbstractModel):
         _y = self.predict(x)
         building_error = len(y) - np.sum(np.equal(np.round(_y[:, 3]), y[:, 3]))
         floor_error = len(y) - np.sum(np.equal(np.round(_y[:, 2]), y[:, 2]))
-        coordinates_error = np.sum(np.sqrt(
-            np.square(_y[:, 0] - y[:, 0]), np.square(_y[:, 1] - y[:, 1])
-        ))
+        longitude_error = np.sum(np.sqrt(np.square(_y[:, 0] - y[:, 0])))
+        latitude_error = np.sum(np.sqrt(np.square(_y[:, 1] - y[:, 1])))
+        coordinates_error = longitude_error + latitude_error
         print building_error
         print floor_error
-        print coordinates_error
+        print longitude_error, latitude_error, coordinates_error
         return building_panality * building_error + floor_panality * floor_error + coordinates_error

@@ -105,10 +105,10 @@ class AbstractModel(object):
         _y = self.predict(x)
         building_error = len(y) - np.sum(np.equal(np.round(_y[:, 3]), y[:, 3]))
         floor_error = len(y) - np.sum(np.equal(np.round(_y[:, 2]), y[:, 2]))
-        coordinates_error = np.sum(np.sqrt(
-            np.square(_y[:, 0] - y[:, 0]), np.square(_y[:, 1] - y[:, 1])
-        ))
+        longitude_error = np.sum(np.sqrt(np.square(_y[:, 0] - y[:, 0])))
+        latitude_error = np.sum(np.sqrt(np.square(_y[:, 1] - y[:, 1])))
+        coordinates_error = longitude_error + latitude_error
         print building_error
         print floor_error
-        print coordinates_error
+        print longitude_error, latitude_error, coordinates_error
         return building_panality * building_error + floor_panality * floor_error + coordinates_error
