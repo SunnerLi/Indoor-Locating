@@ -47,6 +47,14 @@ def load(train_file_name, valid_file_name):
     return training_x, training_y, validation_x, validation_y, testing_x, testing_y
 
 def normalizeX(arr):
+    """
+        Pre-processing toward the rssi feature.
+        In my idea, I regard the value as 0 if original value is 100
+        Second, the value will be transfer into positive one if original value is negative
+
+        Arg:    arr - The training x array
+        Ret:    The array after normalizing
+    """
     res = np.copy(arr).astype(np.float)
     for i in range(np.shape(res)[0]):
         for j in range(np.shape(res)[1]):
@@ -57,18 +65,45 @@ def normalizeX(arr):
     return res
 
 def normalizeY(longitude_arr, latitude_arr):
+    """
+        Use MinMaxScaler to normalize the longitude and latitude tag
+
+        Arg:    longitude_arr   - The longitude array whose shape is [row_number]
+                latitude_arr    - The latitude array whose shape is the same as the longitude array
+        Ret:    The normalized longitude array and normalized latitude array
+    """
     global longitude_scaler
     global latitude_scaler
+    longitude_arr = np.reshape(longitude_arr, [-1, 1])
+    latitude_arr = np.reshape(latitude_arr, [-1, 1])
     longitude_scaler.fit(longitude_arr)
     latitude_scaler.fit(latitude_arr)
-    return longitude_scaler.transform(longitude_arr), latitude_scaler.transform(latitude_arr)
+    return np.reshape(longitude_scaler.transform(longitude_arr), [-1]), \
+            np.reshape(latitude_scaler.transform(latitude_arr), [-1])
 
 def reverse_normalizeY(longitude_arr, latitude_arr):
+    """
+        Recover the normalized longitude and latitude array to the origin
+
+        Arg:    longitude_arr   - The normalized longitude array whose shape is [row_number]
+                latitude_arr    - The normalized latitude array whose shape is the same as the longitude array
+        Ret:    The original longitude array and original latitude array
+    """
     global longitude_scaler
     global latitude_scaler
-    return longitude_scaler.inverse_transform(longitude_arr), latitude_scaler.inverse_transform(latitude_arr)
+    longitude_arr = np.reshape(longitude_arr, [-1, 1])
+    latitude_arr = np.reshape(latitude_arr, [-1, 1])
+    return np.reshape(longitude_scaler.inverse_transform(longitude_arr), [-1]), \
+            np.reshape(latitude_scaler.inverse_transform(latitude_arr), [-1])
 
 def getMiniBatch(arr, batch_size=3):
+    """
+        Return the mini-batch array for the given batch size
+
+        Arg:    arr         - The whole array that want to be sampled
+                batch_size  - The batch size
+        Ret:    The mini-batch array
+    """
     index = 0
     while True: 
         # print index + batch_size

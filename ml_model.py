@@ -7,6 +7,12 @@ import numpy as np
 import data_helper
 import pickle
 
+"""
+    This program define 3 wrapper toward the fundemential model.
+    They are SVM, random forest and gradient boosting decision tree.
+    They inherit the properties and methods of AbstractModel
+"""
+
 class SVM(AbstractModel):
     # Model save path
     longitude_regression_model_save_path = './svm_long.pkl'

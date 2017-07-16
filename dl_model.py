@@ -4,65 +4,22 @@ import tensorflow as tf
 import data_helper
 import numpy as np
 
-class SimpleDNN(AbstractModel):
-    sess = None
-
-    def __init__(self):
-        self.sess = tf.InteractiveSession()
-        self.x = tf.placeholder(tf.float32, [None, 520])
-        self.y = tf.placeholder(tf.float32, [None, 4])
-        network = tl.layers.InputLayer(self.x, name='Input')
-        network = tl.layers.DenseLayer(network, n_units = 256, act = tf.nn.relu, name='fc1')
-        network = tl.layers.DenseLayer(network, n_units = 128, act = tf.nn.relu, name='fc2')
-        network = tl.layers.DenseLayer(network, n_units = 128, act = tf.nn.relu, name='fc3')
-        network = tl.layers.DenseLayer(network, n_units =  64, act = tf.nn.relu, name='fc4')
-        network = tl.layers.DenseLayer(network, n_units =  64, act = tf.nn.relu, name='fc5')
-        network = tl.layers.DenseLayer(network, n_units =  32, act = tf.nn.relu, name='fc6')
-        network = tl.layers.DenseLayer(network, n_units =  32, act = tf.nn.relu, name='fc7')
-        network = tl.layers.DenseLayer(network, n_units =  16, act = tf.nn.relu, name='fc8')
-        network = tl.layers.DenseLayer(network, n_units =   8, act = tf.nn.relu, name='fc9')
-        network = tl.layers.DenseLayer(network, n_units =   4, act = tf.nn.relu, name='fc10')
-        self.y_ = network.outputs
-
-        self.cost = tl.cost.mean_squared_error(self.y, self.y_)
-        self.optimize = tf.train.AdamOptimizer().minimize(self.cost)
-
-    def fit(self, x, y, epoch=10000, batch_size=256):
-        # Data pre-processing
-        self._preprocess(x, y)
-        y = np.concatenate((
-            np.expand_dims(self.longitude_normalize_y, -1), np.expand_dims(self.latitude_normalize_y, -1)
-        ), axis=-1)
-        y = np.concatenate((y, np.expand_dims(self.floorID_y, -1)), axis=-1)
-        y = np.concatenate((y, np.expand_dims(self.buildingID_y, -1)), axis=-1)
-
-        # Train the model
-        self.sess.run(tf.global_variables_initializer())
-        for i in range(epoch):
-            mini_x = data_helper.getMiniBatch(self.normalize_x, batch_size)
-            mini_y = data_helper.getMiniBatch(y, batch_size)
-            feed_dict = {
-                self.x: mini_x.next(),
-                self.y: mini_y.next()
-            }
-            _cost, _ = self.sess.run([self.cost, self.optimize], feed_dict=feed_dict)
-            if i % 100 == 0:
-                print "epoch: ", i, '\tcost: ', _cost
-        self.save()
-
-    def save(self, save_path='./simple_dnn.ckpt'):
-        saver = tf.train.Saver()
-        saver.save(self.sess, save_path)
-
-class ComplexDNN(AbstractModel):
+class DNN(AbstractModel):
     # Model save path
     longitude_regression_model_save_path = './complexDnn_long.pkl'
     latitude_regression_model_save_path = './complexDnn_lat.pkl'
     floor_classifier_save_path = './complexDnn_floor.pkl'
     building_classifier_save_path = './complexDnn_building.pkl'
 
+    # Tensorflow session object
     sess = None
+
     def __init__(self):
+        """
+            Define the DNN graph
+        """
+
+        # Declare session and placeholder
         self.sess = tf.InteractiveSession()
         self.x = tf.placeholder(tf.float32, [None, 520])
         self.locating_y = tf.placeholder(tf.float32, [None, 2])
@@ -70,48 +27,54 @@ class ComplexDNN(AbstractModel):
         self.floor_y = tf.placeholder(tf.float32, [None, 1])
         self.alternative_ctl = tf.placeholder(tf.bool)
 
+        # Define the structure of the network which can predict the values of longitude and latitude
         locating_network = tl.layers.InputLayer(self.x, name='Input')
-        locating_network = tl.layers.DenseLayer(locating_network, n_units = 1024, act = tf.nn.elu, name='locating_fc1' )
-        locating_network = tl.layers.DropoutLayer(locating_network, is_fix = True, name='locating_drop1')
-        locating_network = tl.layers.DenseLayer(locating_network, n_units = 512, act = tf.nn.elu, name='locating_fc2' )
-        locating_network = tl.layers.DropoutLayer(locating_network, is_fix = True, name='locating_drop2')
-        locating_network = tl.layers.DenseLayer(locating_network, n_units = 512, act = tf.nn.elu, name='locating_fc3' )
-        locating_network = tl.layers.DropoutLayer(locating_network, is_fix = True, name='locating_drop3')
-        locating_network = tl.layers.DenseLayer(locating_network, n_units =  2, act = tf.identity, name='locating_fc4' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units = 2048, act = tf.nn.elu, name='locating_fc1' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =  256, act = tf.nn.elu, name='locating_fc2' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =  128, act = tf.nn.elu, name='locating_fc3' )
+        locating_network = tl.layers.DenseLayer(locating_network, n_units =    2, act = tf.identity, name='locating_fc4' )
         self.locating_predict_y = locating_network.outputs
         self.locating_cost = tl.cost.mean_squared_error(self.locating_y, self.locating_predict_y)
         self.locating_optimize = tf.train.AdamOptimizer().minimize(self.locating_cost)
 
+        # Define the structure of the network which can predict the building ID
         building_network = tl.layers.InputLayer(self.locating_predict_y, name='building_input')
-        building_network = tl.layers.DenseLayer(building_network, n_units = 128, act = tf.identity, name='building_fc1')
-        building_network = tl.layers.DropoutLayer(building_network, is_fix = True, name='building_drop1')
-        building_network = tl.layers.DenseLayer(building_network, n_units =  64, act = tf.identity, name='building_fc2')
-        building_network = tl.layers.DropoutLayer(building_network, is_fix = True, name='building_drop2')
-        building_network = tl.layers.DenseLayer(building_network, n_units =  64, act = tf.nn.relu, name='building_fc3')
-        building_network = tl.layers.DropoutLayer(building_network, is_fix = True, name='building_drop3')
-        building_network = tl.layers.DenseLayer(building_network, n_units =   1, act = tf.nn.relu, name='building_fc4')
+        building_network = tl.layers.DenseLayer(building_network, n_units = 128, act = tf.nn.elu, name='building_fc1')
+        building_network = tl.layers.DenseLayer(building_network, n_units =  32, act = tf.nn.elu, name='building_fc2')
+        building_network = tl.layers.DenseLayer(building_network, n_units =  16, act = tf.nn.elu, name='building_fc3')
+        building_network = tl.layers.DenseLayer(building_network, n_units =   8, act = tf.nn.elu, name='building_fc4')
+        building_network = tl.layers.DenseLayer(building_network, n_units =   4, act = tf.nn.elu, name='building_fc5')
+        building_network = tl.layers.DenseLayer(building_network, n_units =   2, act = tf.nn.elu, name='building_fc6')
+        building_network = tl.layers.DenseLayer(building_network, n_units =   1, act = tf.nn.identity, name='building_fc7')
         self.building_predict_y = building_network.outputs
         self.building_cost = tl.cost.mean_squared_error(self.building_y, self.building_predict_y)
         self.building_optimize = tf.train.AdamOptimizer().minimize(self.building_cost, var_list=building_network.all_params)
 
+        # Define the structure of the network which can predict the value of floor attribute
         floor_x = self.locating_predict_y + self.building_predict_y
         floor_network = tl.layers.InputLayer(floor_x)
-        floor_network = tl.layers.DenseLayer(floor_network, n_units = 128, act = tf.identity, name='floor_fc1')
-        floor_network = tl.layers.DropoutLayer(floor_network, is_fix = True, name='floor_drop1')
-        floor_network = tl.layers.DenseLayer(floor_network, n_units =  64, act = tf.nn.relu, name='floor_fc2')
-        floor_network = tl.layers.DropoutLayer(floor_network, is_fix = True, name='floor_drop2')
-        floor_network = tl.layers.DenseLayer(floor_network, n_units =  64, act = tf.nn.relu, name='floor_fc3')
-        floor_network = tl.layers.DropoutLayer(floor_network, is_fix = True, name='floor_drop3')
-        floor_network = tl.layers.DenseLayer(floor_network, n_units =   1, act = tf.identity, name='floor_fc4')
-
+        floor_network = tl.layers.DenseLayer(floor_network, n_units = 128, act = tf.nn.elu, name='floor_fc1')
+        floor_network = tl.layers.DenseLayer(floor_network, n_units =  32, act = tf.nn.elu, name='floor_fc2')
+        floor_network = tl.layers.DenseLayer(floor_network, n_units =  16, act = tf.nn.elu, name='floor_fc3')
+        floor_network = tl.layers.DenseLayer(floor_network, n_units =   8, act = tf.nn.elu, name='floor_fc4')
+        floor_network = tl.layers.DenseLayer(floor_network, n_units =   4, act = tf.nn.elu, name='floor_fc5')
+        floor_network = tl.layers.DenseLayer(floor_network, n_units =   2, act = tf.nn.elu, name='floor_fc6')
+        floor_network = tl.layers.DenseLayer(floor_network, n_units =   1, act = tf.identity, name='floor_fc7')
         self.floor_predict_y = floor_network.outputs
         self.floor_cost = tl.cost.mean_squared_error(self.floor_y, self.floor_predict_y)
         self.floor_optimize = tf.train.AdamOptimizer().minimize(self.floor_cost, var_list=floor_network.all_params)
 
     def fit(self, x, y, epoch=2000, batch_size=256):
+        """
+            Train the DNN model
+
+            Arg:    x           - The feature array
+                    y           - The tag array
+                    epoch       - The value of epoch
+                    batch_size  - The value of batch size
+        """
         # Data pre-processing
         self._preprocess(x, y)
-
         location_pair = np.concatenate((
             np.expand_dims(self.longitude_normalize_y, -1), np.expand_dims(self.latitude_normalize_y, -1)
         ), axis=-1)
@@ -119,10 +82,9 @@ class ComplexDNN(AbstractModel):
         # Train the model
         print "<< training >>"
         self.sess.run(tf.global_variables_initializer())
-        for k in range(5):
+        for k in range(10):
+            # Location part
             print "-------- epoch ", k, ' ---------'
-
-            # Train locating DNN
             print "\n< position >\n"
             for i in range(epoch):
                 mini_x = data_helper.getMiniBatch(self.normalize_x , batch_size)
@@ -134,8 +96,8 @@ class ComplexDNN(AbstractModel):
                 _cost, _, _output = self.sess.run([self.locating_cost, self.locating_optimize, self.locating_predict_y], feed_dict=feed_dict)
                 if i % 100 == 0:
                     print "epoch: ", i, '\tcost: ', _cost
-            
-            # Train building ID DNN
+
+            # Building ID part
             print "\n< building >\n"
             for i in range(epoch):
                 mini_x = data_helper.getMiniBatch(self.normalize_x, batch_size)
@@ -150,7 +112,7 @@ class ComplexDNN(AbstractModel):
                 if i % 100 == 0:
                     print "epoch: ", i, '\tcost: ', _cost
 
-            # Train floor ID DNN
+            # Floor part
             print "\n< floor >\n"
             for i in range(epoch):
                 mini_x = data_helper.getMiniBatch(self.normalize_x, batch_size)
@@ -164,22 +126,33 @@ class ComplexDNN(AbstractModel):
                     break
                 if i % 100 == 0:
                     print "epoch: ", i, '\tcost: ', _cost            
-            
         self.save()
 
     def save(self, save_path='./complex_dnn.ckpt'):
-        super(ComplexDNN, self).save()
+        """
+            Save the training result toward the particular saving path
+
+            Arg:    save_path   - The path you want to save the model
+        """
+        super(DNN, self).save()
         saver = tf.train.Saver()
         saver.save(self.sess, save_path)
 
     def predict(self, x, model_path='./complex_dnn.ckpt'):
+        """
+            Predict the tag by the model
+            You should train the model before calling this function
+
+            Arg:    x           - The feature array that you want to predict
+                    model_path  - The path of the trained model
+            Ret:    The predict result whose shape is [num_of_row, 4]
+        """
         # Load model and parameter
-        super(ComplexDNN, self).load()
+        super(DNN, self).load()
         saver = tf.train.Saver()
         saver.restore(self.sess, model_path)
 
         # Testing
-        print "<< Testing >>"
         x = data_helper.normalizeX(x)
         predict_result = self.sess.run(self.locating_predict_y, feed_dict={self.x: x})
         predict_longitude = predict_result[:, 0]
@@ -198,13 +171,24 @@ class ComplexDNN(AbstractModel):
         return res
 
     def error(self, x, y, building_panality=50, floor_panality=4):
+        """
+            Return the error by the predict result
+            The formula of error computing is referred from the Kaggle information
+            The predict function is defined in DNN class, not the AbstractModel class
+
+            < formula >
+            Error = building_penality * building_error + floor_penality * floor_error + coordinates_error
+
+            Arg:    x                   - The feature array that you want to test
+                    y                   - The ground truth array
+                    building_panality   - The coefficient that is defined in the error formula
+                    floor_panality      - The coefficient that is defined in the error formula
+            Ret:    The value of error
+        """
         _y = self.predict(x)
         building_error = len(y) - np.sum(np.equal(np.round(_y[:, 3]), y[:, 3]))
         floor_error = len(y) - np.sum(np.equal(np.round(_y[:, 2]), y[:, 2]))
         longitude_error = np.sum(np.sqrt(np.square(_y[:, 0] - y[:, 0])))
         latitude_error = np.sum(np.sqrt(np.square(_y[:, 1] - y[:, 1])))
         coordinates_error = longitude_error + latitude_error
-        print building_error
-        print floor_error
-        print longitude_error, latitude_error, coordinates_error
         return building_panality * building_error + floor_panality * floor_error + coordinates_error

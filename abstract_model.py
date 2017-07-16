@@ -39,12 +39,22 @@ class AbstractModel(object):
         pass
 
     def _preprocess(self, x, y):
+        """
+            Data pre-processing for the x and y array
+            It's not recommend to use this function directly!
+
+            Arg:    x   - The feature array
+                    y   - The tag array
+        """
         self.normalize_x = data_helper.normalizeX(x)
         self.longitude_normalize_y, self.latitude_normalize_y = data_helper.normalizeY(y[:, 0], y[:, 1])
         self.floorID_y = y[:, 2]
         self.buildingID_y = y[:, 3]
 
     def save(self):
+        """
+            Save the training result
+        """
         print "<< Saving >>"
         joblib.dump(self.longitude_regression_model, self.longitude_regression_model_save_path)
         joblib.dump(self.latitude_regression_model, self.latitude_regression_model_save_path)
@@ -52,13 +62,21 @@ class AbstractModel(object):
         joblib.dump(self.building_classifier, self.building_classifier_save_path)
 
     def load(self):
-        print "<< Loading >>"
+        """
+            Load the pre-trained model
+        """
         self.longitude_regression_model = joblib.load(self.longitude_regression_model_save_path)
         self.latitude_regression_model = joblib.load(self.latitude_regression_model_save_path)
         self.floor_classifier = joblib.load(self.floor_classifier_save_path)
         self.building_classifier = joblib.load(self.building_classifier_save_path)
 
     def fit(self, x, y):
+        """
+            Train the model
+
+            Arg:    x   - The feature array
+                    y   - The tag array
+        """
         # Data pre-processing
         self._preprocess(x, y)
 
@@ -80,11 +98,17 @@ class AbstractModel(object):
         self.save()
 
     def predict(self, x):
+        """
+            Predict the tag by the model
+            You should train the model before calling this function
+
+            Arg:    x   - The feature array that you want to predict
+            Ret:    The predict result whose shape is [num_of_row, 4]
+        """
         # Load model
         self.load()
 
         # Testing
-        print "<< Testing >>"
         x = data_helper.normalizeX(x)
         predict_longitude = self.longitude_regression_model.predict(x)
         predict_latitude = self.latitude_regression_model.predict(x)
@@ -102,13 +126,23 @@ class AbstractModel(object):
         return res
 
     def error(self, x, y, building_panality=50, floor_panality=4):
+        """
+            Return the error by the predict result
+            The formula of error computing is referred from the Kaggle information
+
+            < formula >
+            Error = building_penality * building_error + floor_penality * floor_error + coordinates_error
+
+            Arg:    x                   - The feature array that you want to test
+                    y                   - The ground truth array
+                    building_panality   - The coefficient that is defined in the error formula
+                    floor_panality      - The coefficient that is defined in the error formula
+            Ret:    The value of error
+        """
         _y = self.predict(x)
         building_error = len(y) - np.sum(np.equal(np.round(_y[:, 3]), y[:, 3]))
         floor_error = len(y) - np.sum(np.equal(np.round(_y[:, 2]), y[:, 2]))
         longitude_error = np.sum(np.sqrt(np.square(_y[:, 0] - y[:, 0])))
         latitude_error = np.sum(np.sqrt(np.square(_y[:, 1] - y[:, 1])))
         coordinates_error = longitude_error + latitude_error
-        print building_error
-        print floor_error
-        print longitude_error, latitude_error, coordinates_error
         return building_panality * building_error + floor_panality * floor_error + coordinates_error
