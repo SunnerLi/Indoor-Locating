@@ -78,10 +78,12 @@ def normalizeY(longitude_arr, latitude_arr):
     latitude_arr = np.reshape(latitude_arr, [-1, 1])
     longitude_scaler.fit(longitude_arr)
     latitude_scaler.fit(latitude_arr)
+    if type(latitude_arr) == type(None):
+        return np.reshape(longitude_scaler.transform(longitude_arr), [-1])
     return np.reshape(longitude_scaler.transform(longitude_arr), [-1]), \
             np.reshape(latitude_scaler.transform(latitude_arr), [-1])
 
-def reverse_normalizeY(longitude_arr, latitude_arr):
+def reverse_normalizeY(longitude_arr, latitude_arr=None):
     """
         Recover the normalized longitude and latitude array to the origin
 
@@ -114,3 +116,9 @@ def getMiniBatch(arr, batch_size=3):
             res = arr[index:index + batch_size]
         index = (index + batch_size) % len(arr)
         yield res
+
+def oneHotEncode(arr):
+    return pd.get_dummies(np.reshape(arr, [-1])).values
+
+def oneHotDecode(arr):
+    return np.argmax(np.round(arr), axis=1)
