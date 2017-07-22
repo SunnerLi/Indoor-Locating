@@ -11,8 +11,9 @@ if __name__ == '__main__':
         data_helper.load(train_csv_path, valid_csv_path)
 
     # Training
-    encode_dnn_model = EncoderDNN()
+    encode_dnn_model = EncoderDNN()    
     encode_dnn_model.fit(train_x, train_y)
-    print test_y
-    print encode_dnn_model.predict(test_x)
-    print 'DNN error: ', encode_dnn_model.error(test_x, test_y)
+    print(test_y)
+    print(encode_dnn_model.predict(test_x))
+    print('DNN error: ', encode_dnn_model.error(test_x, test_y))
+    

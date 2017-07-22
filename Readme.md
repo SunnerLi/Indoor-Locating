@@ -12,7 +12,7 @@ Result
 
 |Model type|SVM|Random forest|Gradient boosting tree|DNN|
 |---|---|---|---|---|
-|Error value|58786.35|22390.67|45143.24|234203.36|
+|Error value|58786.35|22390.67|45143.24|27990.10|
 
 Train by Yourself
 ---
